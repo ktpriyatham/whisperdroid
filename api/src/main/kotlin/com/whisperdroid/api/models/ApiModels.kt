@@ -6,6 +6,7 @@ data class WhisperResponse(
 
 data class ClaudeRequest(
     val model: String,
+    val system: String,
     val messages: List<Message>,
     val max_tokens: Int
 )

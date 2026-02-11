@@ -18,20 +18,34 @@ import androidx.compose.material3.Surface
 import com.whisperdroid.keyboard.ui.KeyboardAction
 import com.whisperdroid.keyboard.ui.KeyboardLayout
 import android.view.KeyEvent
+import com.whisperdroid.api.ClaudeApiClient
+import com.whisperdroid.api.WhisperApiClient
+import com.whisperdroid.core.Constants
 import com.whisperdroid.keyboard.audio.AudioHandler
+import com.whisperdroid.security.EncryptedPreferencesManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class WhisperDroidInputMethodService : InputMethodService() {
 
     private val viewModel = KeyboardViewModel()
     private lateinit var audioHandler: AudioHandler
+    private lateinit var prefs: EncryptedPreferencesManager
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
         audioHandler = AudioHandler(this)
+        prefs = EncryptedPreferencesManager(this)
     }
 
     override fun onDestroy() {
         audioHandler.release()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -95,9 +109,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         val audioFile = audioHandler.stopRecording()
                         if (audioFile != null && audioFile.exists()) {
                             Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
-                            // For now, just simulate processing and then success
-                            // In Task 5, we will call the API
-                            kvm.voiceState = VoiceState.SUCCESS
+                            processAudio(audioFile)
                         } else {
                             Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
                             kvm.voiceState = VoiceState.IDLE
@@ -135,6 +147,53 @@ class WhisperDroidInputMethodService : InputMethodService() {
             KeyboardAction.SWITCH_ALPHA -> kvm.keyboardMode = KeyboardMode.ALPHA
             KeyboardAction.SWITCH_NUMERIC -> kvm.keyboardMode = KeyboardMode.NUMERIC
             KeyboardAction.SWITCH_SYMBOLS -> kvm.keyboardMode = KeyboardMode.SYMBOLS
+        }
+    }
+
+    private fun processAudio(audioFile: java.io.File) {
+        viewModel.voiceState = VoiceState.PROCESSING
+        serviceScope.launch {
+            try {
+                val openAiKey = prefs.getString(Constants.KEY_OPENAI_API_KEY)
+                val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
+
+                if (openAiKey.isNullOrBlank() || claudeKey.isNullOrBlank()) {
+                    Toast.makeText(this@WhisperDroidInputMethodService, "Please set API keys in settings", Toast.LENGTH_LONG).show()
+                    viewModel.voiceState = VoiceState.IDLE
+                    return@launch
+                }
+
+                val transcription = withContext(Dispatchers.IO) {
+                    WhisperApiClient(openAiKey).transcribe(audioFile)
+                }
+
+                if (transcription.isBlank()) {
+                    Toast.makeText(this@WhisperDroidInputMethodService, "No speech detected", Toast.LENGTH_SHORT).show()
+                    viewModel.voiceState = VoiceState.IDLE
+                    return@launch
+                }
+
+                val cleanedText = withContext(Dispatchers.IO) {
+                    ClaudeApiClient(claudeKey).cleanUp(transcription)
+                }
+
+                if (cleanedText.isNotBlank()) {
+                    currentInputConnection?.commitText(cleanedText, 1)
+                    viewModel.voiceState = VoiceState.SUCCESS
+                } else {
+                    currentInputConnection?.commitText(transcription, 1)
+                    viewModel.voiceState = VoiceState.SUCCESS
+                }
+
+            } catch (e: Exception) {
+                Log.e(Constants.LOG_TAG, "Error processing audio", e)
+                Toast.makeText(this@WhisperDroidInputMethodService, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                viewModel.voiceState = VoiceState.IDLE
+            } finally {
+                if (audioFile.exists()) {
+                    audioFile.delete()
+                }
+            }
         }
     }
 

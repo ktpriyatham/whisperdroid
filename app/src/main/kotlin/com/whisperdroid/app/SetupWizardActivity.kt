@@ -115,13 +115,15 @@ fun SetupWizardScreen(
                                 title = "OpenAI API Key",
                                 description = "Used for high-quality speech-to-text transcription. You can get one from the OpenAI dashboard.",
                                 value = openAIKey,
-                                onValueChange = { openAIKey = it }
+                                onValueChange = { openAIKey = it },
+                                errorMessage = if (openAIKey.isNotEmpty() && !openAIKey.startsWith("sk-")) "Must start with 'sk-'" else null
                             )
                             SetupStep.CLAUDE_KEY -> KeyInputStep(
                                 title = "Claude API Key",
                                 description = "Used for intelligent text refinement. You can get one from the Anthropic console.",
                                 value = claudeKey,
-                                onValueChange = { claudeKey = it }
+                                onValueChange = { claudeKey = it },
+                                errorMessage = if (claudeKey.isNotEmpty() && !claudeKey.startsWith("sk-ant-")) "Must start with 'sk-ant-'" else null
                             )
                             SetupStep.COMPLETION -> CompletionStep()
                         }
@@ -143,7 +145,15 @@ fun SetupWizardScreen(
                     Spacer(modifier = Modifier.width(1.dp))
                 }
 
+                val isNextEnabled = when (currentStep) {
+                    SetupStep.WELCOME -> true
+                    SetupStep.OPENAI_KEY -> openAIKey.isEmpty() || openAIKey.startsWith("sk-")
+                    SetupStep.CLAUDE_KEY -> claudeKey.isEmpty() || claudeKey.startsWith("sk-ant-")
+                    SetupStep.COMPLETION -> true
+                }
+
                 Button(
+                    enabled = isNextEnabled,
                     onClick = {
                         when (currentStep) {
                             SetupStep.WELCOME -> currentStep = SetupStep.OPENAI_KEY
@@ -211,7 +221,8 @@ fun KeyInputStep(
     title: String,
     description: String,
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    errorMessage: String? = null
 ) {
     var keyVisible by remember { mutableStateOf(false) }
 
@@ -231,6 +242,16 @@ fun KeyInputStep(
         onValueChange = onValueChange,
         label = { Text("API Key") },
         modifier = Modifier.fillMaxWidth(),
+        isError = errorMessage != null,
+        supportingText = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(errorMessage ?: "")
+                Text("${value.length} characters")
+            }
+        },
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         trailingIcon = {

@@ -90,11 +90,22 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
             )
             
             // OpenAI API Key
+            val openAIKeyError = if (openAIKey.isNotEmpty() && !openAIKey.startsWith("sk-")) "Must start with 'sk-'" else null
             OutlinedTextField(
                 value = openAIKey,
                 onValueChange = { openAIKey = it },
                 label = { Text("OpenAI API Key") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = openAIKeyError != null,
+                supportingText = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(openAIKeyError ?: "")
+                        Text("${openAIKey.length} characters")
+                    }
+                },
                 visualTransformation = if (openAIKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
@@ -108,11 +119,22 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
             )
             
             // Claude API Key
+            val claudeKeyError = if (claudeKey.isNotEmpty() && !claudeKey.startsWith("sk-ant-")) "Must start with 'sk-ant-'" else null
             OutlinedTextField(
                 value = claudeKey,
                 onValueChange = { claudeKey = it },
                 label = { Text("Claude API Key") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = claudeKeyError != null,
+                supportingText = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(claudeKeyError ?: "")
+                        Text("${claudeKey.length} characters")
+                    }
+                },
                 visualTransformation = if (claudeKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
@@ -200,7 +222,10 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
                 maxLines = 5
             )
 
+            val isSaveEnabled = openAIKeyError == null && claudeKeyError == null
+
             Button(
+                enabled = isSaveEnabled,
                 onClick = {
                     prefs.saveString(Constants.KEY_OPENAI_API_KEY, openAIKey)
                     prefs.saveString(Constants.KEY_CLAUDE_API_KEY, claudeKey)

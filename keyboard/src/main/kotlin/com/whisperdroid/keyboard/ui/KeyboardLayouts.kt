@@ -3,6 +3,7 @@ package com.whisperdroid.keyboard.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,23 @@ fun KeyboardLayout(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.End
         ) {
+            val statusText = when (voiceState) {
+                VoiceState.RECORDING -> "Recording..."
+                VoiceState.TRANSCRIBING -> "Transcribing..."
+                VoiceState.CLEANING_UP -> "Cleaning up..."
+                VoiceState.SUCCESS -> "Done!"
+                else -> ""
+            }
+
+            if (statusText.isNotEmpty()) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+            }
+
             VoiceButton(
                 state = voiceState,
                 onStartRecording = onVoiceStart,

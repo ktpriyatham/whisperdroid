@@ -15,6 +15,7 @@ enum class KeyboardMode {
 enum class VoiceState {
     IDLE,
     RECORDING,
-    PROCESSING,
+    TRANSCRIBING,
+    CLEANING_UP,
     SUCCESS
 }

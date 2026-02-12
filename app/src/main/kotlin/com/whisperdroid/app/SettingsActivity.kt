@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -45,10 +46,23 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen(prefs: EncryptedPreferencesManager) {
     var openAIKey by remember { mutableStateOf(prefs.getString(Constants.KEY_OPENAI_API_KEY) ?: "") }
     var claudeKey by remember { mutableStateOf(prefs.getString(Constants.KEY_CLAUDE_API_KEY) ?: "") }
-    
+
+    var refinementEnabled by remember {
+        mutableStateOf(prefs.getBoolean(Constants.KEY_REFINEMENT_ENABLED, true))
+    }
+    var clipboardOutput by remember {
+        mutableStateOf(prefs.getBoolean(Constants.KEY_CLIPBOARD_OUTPUT, false))
+    }
+    var hapticsEnabled by remember {
+        mutableStateOf(prefs.getBoolean(Constants.KEY_HAPTICS_ENABLED, true))
+    }
+    var systemPrompt by remember {
+        mutableStateOf(prefs.getString(Constants.KEY_SYSTEM_PROMPT) ?: Constants.DEFAULT_SYSTEM_PROMPT)
+    }
+
     var openAIKeyVisible by remember { mutableStateOf(false) }
     var claudeKeyVisible by remember { mutableStateOf(false) }
-    
+
     var showClearConfirmation by remember { mutableStateOf(false) }
     
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,17 +125,96 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
                 }
             )
             
+            Text(
+                text = "Behavior Configuration",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            // Claude Refinement Toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Enable Claude Refinement")
+                    Text(
+                        "Use Claude to clean up transcriptions",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = refinementEnabled,
+                    onCheckedChange = { refinementEnabled = it }
+                )
+            }
+
+            // Clipboard Output Toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Output to Clipboard")
+                    Text(
+                        "Copy transcription to clipboard instead of direct input",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = clipboardOutput,
+                    onCheckedChange = { clipboardOutput = it }
+                )
+            }
+
+            // Haptics Toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Enable Haptics")
+                    Text(
+                        "Vibrate on keypress and recording",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = hapticsEnabled,
+                    onCheckedChange = { hapticsEnabled = it }
+                )
+            }
+
+            // Custom System Prompt
+            OutlinedTextField(
+                value = systemPrompt,
+                onValueChange = { systemPrompt = it },
+                label = { Text("Custom System Prompt") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                maxLines = 5
+            )
+
             Button(
                 onClick = {
                     prefs.saveString(Constants.KEY_OPENAI_API_KEY, openAIKey)
                     prefs.saveString(Constants.KEY_CLAUDE_API_KEY, claudeKey)
+                    prefs.saveBoolean(Constants.KEY_REFINEMENT_ENABLED, refinementEnabled)
+                    prefs.saveBoolean(Constants.KEY_CLIPBOARD_OUTPUT, clipboardOutput)
+                    prefs.saveBoolean(Constants.KEY_HAPTICS_ENABLED, hapticsEnabled)
+                    prefs.saveString(Constants.KEY_SYSTEM_PROMPT, systemPrompt)
                     scope.launch {
                         snackbarHostState.showSnackbar("Settings saved")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save Keys")
+                Text("Save Settings")
             }
             
             HorizontalDivider()

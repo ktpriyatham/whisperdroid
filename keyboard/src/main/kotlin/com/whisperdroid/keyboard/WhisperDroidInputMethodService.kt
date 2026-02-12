@@ -64,6 +64,18 @@ class WhisperDroidInputMethodService : InputMethodService() {
         return frameLayout
     }
 
+    private fun performHapticFeedback() {
+        if (prefs.getBoolean(Constants.KEY_HAPTICS_ENABLED, true)) {
+            val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(30, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(30)
+            }
+        }
+    }
+
     @Composable
     fun KeyboardScreen(kvm: KeyboardViewModel) {
         LaunchedEffect(kvm.voiceState) {
@@ -79,6 +91,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 keyboardMode = kvm.keyboardMode,
                 voiceState = kvm.voiceState,
                 onKeyClick = { text ->
+                    performHapticFeedback()
                     currentInputConnection?.commitText(text, 1)
                     if (kvm.shiftState == ShiftState.SHIFTED) {
                         kvm.shiftState = ShiftState.NONE
@@ -88,6 +101,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     handleAction(action, kvm)
                 },
                 onVoiceStart = {
+                    performHapticFeedback()
                     if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         kvm.voiceState = VoiceState.RECORDING
                         try {
@@ -107,6 +121,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 },
                 onVoiceStop = {
                     if (kvm.voiceState == VoiceState.RECORDING) {
+                        performHapticFeedback()
                         kvm.voiceState = VoiceState.TRANSCRIBING
                         val audioFile = audioHandler.stopRecording()
                         if (audioFile != null && audioFile.exists()) {
@@ -123,6 +138,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
     }
 
     private fun handleAction(action: KeyboardAction, kvm: KeyboardViewModel) {
+        performHapticFeedback()
         when (action) {
             KeyboardAction.SHIFT -> kvm.handleShift()
             KeyboardAction.BACKSPACE -> {
@@ -159,8 +175,8 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     val openAiKey = prefs.getString(Constants.KEY_OPENAI_API_KEY)
                     val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
 
-                    if (openAiKey.isNullOrBlank() || claudeKey.isNullOrBlank()) {
-                        Toast.makeText(this@WhisperDroidInputMethodService, "Please set API keys in settings", Toast.LENGTH_LONG).show()
+                    if (openAiKey.isNullOrBlank()) {
+                        Toast.makeText(this@WhisperDroidInputMethodService, "Please set OpenAI API key in settings", Toast.LENGTH_LONG).show()
                         viewModel.voiceState = VoiceState.IDLE
                         return@withTimeout
                     }
@@ -177,19 +193,38 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         return@withTimeout
                     }
 
-                    // Cleaning up step
-                    viewModel.voiceState = VoiceState.CLEANING_UP
-                    val cleanedText = try {
-                        withContext(Dispatchers.IO) {
-                            ClaudeApiClient.cleanUp(claudeKey, transcription)
+                    val refinementEnabled = prefs.getBoolean(Constants.KEY_REFINEMENT_ENABLED, true)
+                    var resultText = transcription
+
+                    if (refinementEnabled && !claudeKey.isNullOrBlank()) {
+                        // Cleaning up step
+                        viewModel.voiceState = VoiceState.CLEANING_UP
+                        val systemPrompt = prefs.getString(Constants.KEY_SYSTEM_PROMPT) ?: Constants.DEFAULT_SYSTEM_PROMPT
+                        val cleanedText = try {
+                            withContext(Dispatchers.IO) {
+                                ClaudeApiClient.cleanUp(claudeKey, transcription, systemPrompt)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(Constants.LOG_TAG, "Claude cleanup failed, using raw transcription", e)
+                            transcription
                         }
-                    } catch (e: Exception) {
-                        Log.e(Constants.LOG_TAG, "Claude cleanup failed, using raw transcription", e)
-                        transcription
+                        if (cleanedText.isNotBlank()) {
+                            resultText = cleanedText
+                        }
                     }
 
-                    val resultText = if (cleanedText.isNotBlank()) cleanedText else transcription
-                    currentInputConnection?.commitText(resultText, 1)
+                    val clipboardOutput = prefs.getBoolean(Constants.KEY_CLIPBOARD_OUTPUT, false)
+                    if (clipboardOutput) {
+                        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("WhisperDroid Transcription", resultText)
+                        clipboard.setPrimaryClip(clip)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@WhisperDroidInputMethodService, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        currentInputConnection?.commitText(resultText, 1)
+                    }
+
                     viewModel.voiceState = VoiceState.SUCCESS
                 }
             } catch (e: TimeoutCancellationException) {

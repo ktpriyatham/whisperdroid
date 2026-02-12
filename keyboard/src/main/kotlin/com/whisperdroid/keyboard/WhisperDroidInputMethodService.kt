@@ -8,11 +8,20 @@ import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.whisperdroid.core.ui.theme.WhisperDroidTheme
 import kotlinx.coroutines.delay
 import androidx.compose.material3.Surface
@@ -68,16 +77,42 @@ class WhisperDroidInputMethodService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
-        val frameLayout = FrameLayout(this)
-        val composeView = ComposeView(this).apply {
+        val view = ComposeView(this).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 WhisperDroidTheme {
                     KeyboardScreen(viewModel)
                 }
             }
         }
-        frameLayout.addView(composeView)
-        return frameLayout
+        
+        // Set up lifecycle owner for Compose
+        val lifecycleOwner = KeyboardLifecycleOwner()
+        lifecycleOwner.performRestore(null)
+        lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        
+        view.setViewTreeLifecycleOwner(lifecycleOwner)
+        view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+        
+        return view
+    }
+    
+    private class KeyboardLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner {
+        private val lifecycleRegistry = LifecycleRegistry(this)
+        private val savedStateRegistryController = SavedStateRegistryController.create(this)
+        
+        override val lifecycle: Lifecycle get() = lifecycleRegistry
+        override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+        
+        fun performRestore(savedState: android.os.Bundle?) {
+            savedStateRegistryController.performRestore(savedState)
+        }
+        
+        fun handleLifecycleEvent(event: Lifecycle.Event) {
+            lifecycleRegistry.handleLifecycleEvent(event)
+        }
     }
 
     private fun performHapticFeedback(type: HapticType = HapticType.KEY_PRESS) {

@@ -262,9 +262,11 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         viewModel.voiceState = VoiceState.CLEANING_UP
                         val systemPrompt = prefs.getString(Constants.KEY_SYSTEM_PROMPT)
                             .takeUnless { it.isNullOrBlank() } ?: Constants.DEFAULT_SYSTEM_PROMPT
+                        val claudeModel = prefs.getString(Constants.KEY_CLAUDE_MODEL)
+                            .takeUnless { it.isNullOrBlank() } ?: Constants.DEFAULT_CLAUDE_MODEL
                         val cleanedText = try {
                             withContext(Dispatchers.IO) {
-                                ClaudeApiClient.cleanUp(claudeKey, transcription, systemPrompt)
+                                ClaudeApiClient.cleanUp(claudeKey, transcription, systemPrompt, claudeModel)
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Claude cleanup failed, using raw transcription", e)

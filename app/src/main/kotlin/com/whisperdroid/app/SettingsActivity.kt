@@ -59,6 +59,9 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
     var systemPrompt by remember {
         mutableStateOf(prefs.getString(Constants.KEY_SYSTEM_PROMPT) ?: Constants.DEFAULT_SYSTEM_PROMPT)
     }
+    var claudeModel by remember {
+        mutableStateOf(prefs.getString(Constants.KEY_CLAUDE_MODEL) ?: Constants.DEFAULT_CLAUDE_MODEL)
+    }
 
     var openAIKeyVisible by remember { mutableStateOf(false) }
     var claudeKeyVisible by remember { mutableStateOf(false) }
@@ -172,6 +175,48 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
                 )
             }
 
+            if (refinementEnabled) {
+                var expanded by remember { mutableStateOf(false) }
+                val models = remember {
+                    listOf(
+                        "claude-3-haiku-20240307" to "Claude 3 Haiku",
+                        "claude-3-sonnet-20240229" to "Claude 3 Sonnet",
+                        "claude-3-opus-20240229" to "Claude 3 Opus"
+                    )
+                }
+                val selectedModelName = models.find { it.first == claudeModel }?.second ?: claudeModel
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedModelName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Claude Model") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        models.forEach { (modelId, modelName) ->
+                            DropdownMenuItem(
+                                text = { Text(modelName) },
+                                onClick = {
+                                    claudeModel = modelId
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Clipboard Output Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -233,6 +278,7 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
                     prefs.saveBoolean(Constants.KEY_CLIPBOARD_OUTPUT, clipboardOutput)
                     prefs.saveBoolean(Constants.KEY_HAPTICS_ENABLED, hapticsEnabled)
                     prefs.saveString(Constants.KEY_SYSTEM_PROMPT, systemPrompt)
+                    prefs.saveString(Constants.KEY_CLAUDE_MODEL, claudeModel)
                     scope.launch {
                         snackbarHostState.showSnackbar("Settings saved")
                     }

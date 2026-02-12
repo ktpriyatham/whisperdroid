@@ -92,7 +92,7 @@ object ClaudeApiClient {
             .create(ClaudeService::class.java)
     }
 
-    suspend fun cleanUp(apiKey: String, text: String, systemPrompt: String = Constants.DEFAULT_SYSTEM_PROMPT): String = safeApiCall {
+    suspend fun cleanUp(apiKey: String, text: String, systemPrompt: String): String = safeApiCall {
         val request = ClaudeRequest(
             model = "claude-3-haiku-20240307",
             max_tokens = 1024,

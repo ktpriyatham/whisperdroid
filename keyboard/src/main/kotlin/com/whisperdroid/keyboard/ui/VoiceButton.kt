@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -91,6 +92,13 @@ fun VoiceButton(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Success",
                     tint = Color.Green
+                )
+            }
+            VoiceState.OFFLINE -> {
+                Icon(
+                    imageVector = Icons.Default.MicOff,
+                    contentDescription = "Offline",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }

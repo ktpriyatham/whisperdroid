@@ -42,6 +42,7 @@ fun KeyboardLayout(
                 VoiceState.TRANSCRIBING -> "Transcribing..."
                 VoiceState.CLEANING_UP -> "Cleaning up..."
                 VoiceState.SUCCESS -> "Done!"
+                VoiceState.OFFLINE -> "Offline"
                 else -> ""
             }
 

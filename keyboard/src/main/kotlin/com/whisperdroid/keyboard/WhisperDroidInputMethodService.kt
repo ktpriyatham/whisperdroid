@@ -21,6 +21,7 @@ import android.view.KeyEvent
 import com.whisperdroid.api.ClaudeApiClient
 import com.whisperdroid.api.WhisperApiClient
 import com.whisperdroid.core.Constants
+import com.whisperdroid.core.NetworkUtils
 import com.whisperdroid.keyboard.audio.AudioHandler
 import com.whisperdroid.security.EncryptedPreferencesManager
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +80,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
     @Composable
     fun KeyboardScreen(kvm: KeyboardViewModel) {
         LaunchedEffect(kvm.voiceState) {
-            if (kvm.voiceState == VoiceState.SUCCESS) {
+            if (kvm.voiceState == VoiceState.SUCCESS || kvm.voiceState == VoiceState.OFFLINE) {
                 delay(800)
                 kvm.voiceState = VoiceState.IDLE
             }
@@ -122,8 +123,18 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 onVoiceStop = {
                     if (kvm.voiceState == VoiceState.RECORDING) {
                         performHapticFeedback()
-                        kvm.voiceState = VoiceState.TRANSCRIBING
                         val audioFile = audioHandler.stopRecording()
+                        
+                        if (!NetworkUtils.isOnline(this)) {
+                            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
+                            kvm.voiceState = VoiceState.OFFLINE
+                            if (audioFile?.exists() == true) {
+                                audioFile.delete()
+                            }
+                            return@KeyboardLayout
+                        }
+
+                        kvm.voiceState = VoiceState.TRANSCRIBING
                         if (audioFile != null && audioFile.exists()) {
                             Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
                             processAudio(audioFile)

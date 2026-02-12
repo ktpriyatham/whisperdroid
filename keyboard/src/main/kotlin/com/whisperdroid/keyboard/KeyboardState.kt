@@ -18,5 +18,6 @@ enum class VoiceState {
     TRANSCRIBING,
     CLEANING_UP,
     SUCCESS,
-    OFFLINE
+    OFFLINE,
+    ERROR
 }

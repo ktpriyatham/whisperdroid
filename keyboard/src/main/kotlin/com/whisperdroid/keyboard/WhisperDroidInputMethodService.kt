@@ -115,9 +115,16 @@ class WhisperDroidInputMethodService : InputMethodService() {
     @Composable
     fun KeyboardScreen(kvm: KeyboardViewModel) {
         LaunchedEffect(kvm.voiceState) {
-            if (kvm.voiceState == VoiceState.SUCCESS || kvm.voiceState == VoiceState.OFFLINE) {
-                delay(800)
-                kvm.voiceState = VoiceState.IDLE
+            when (kvm.voiceState) {
+                VoiceState.SUCCESS -> {
+                    delay(800)
+                    kvm.voiceState = VoiceState.IDLE
+                }
+                VoiceState.OFFLINE, VoiceState.ERROR -> {
+                    delay(3000)
+                    kvm.voiceState = VoiceState.IDLE
+                }
+                else -> {}
             }
         }
 
@@ -126,6 +133,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 shiftState = kvm.shiftState,
                 keyboardMode = kvm.keyboardMode,
                 voiceState = kvm.voiceState,
+                errorMessage = kvm.errorMessage,
                 onKeyClick = { text ->
                     performHapticFeedback()
                     currentInputConnection?.commitText(text, 1)
@@ -147,18 +155,14 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         try {
                             audioHandler.startRecording()
                         } catch (e: Exception) {
-                            performHapticFeedback(HapticType.ERROR)
-                            Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show()
-                            kvm.voiceState = VoiceState.IDLE
+                            showError("Failed to start recording")
                         }
                     } else {
-                        performHapticFeedback(HapticType.ERROR)
-                        Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
+                        showError("Microphone permission required")
                         val intent = Intent(this, PermissionActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         startActivity(intent)
-                        kvm.voiceState = VoiceState.IDLE
                     }
                 },
                 onVoiceStop = {
@@ -167,9 +171,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         val audioFile = audioHandler.stopRecording()
                         
                         if (!NetworkUtils.isOnline(this)) {
-                            performHapticFeedback(HapticType.ERROR)
-                            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
-                            kvm.voiceState = VoiceState.OFFLINE
+                            showError("No internet connection", VoiceState.OFFLINE)
                             if (audioFile?.exists() == true) {
                                 audioFile.delete()
                             }
@@ -181,14 +183,19 @@ class WhisperDroidInputMethodService : InputMethodService() {
                             Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
                             processAudio(audioFile)
                         } else {
-                            performHapticFeedback(HapticType.ERROR)
-                            Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
-                            kvm.voiceState = VoiceState.IDLE
+                            showError("Recording failed")
                         }
                     }
                 }
             )
         }
+    }
+
+    private fun showError(message: String, state: VoiceState = VoiceState.ERROR) {
+        performHapticFeedback(HapticType.ERROR)
+        viewModel.errorMessage = message
+        viewModel.voiceState = state
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun handleAction(action: KeyboardAction, kvm: KeyboardViewModel) {
@@ -230,9 +237,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
 
                     if (openAiKey.isNullOrBlank()) {
-                        performHapticFeedback(HapticType.ERROR)
-                        Toast.makeText(this@WhisperDroidInputMethodService, "Please set OpenAI API key in settings", Toast.LENGTH_LONG).show()
-                        viewModel.voiceState = VoiceState.IDLE
+                        showError("OpenAI API key not set")
                         return@withTimeout
                     }
 
@@ -243,9 +248,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     }
 
                     if (transcription.isBlank()) {
-                        performHapticFeedback(HapticType.ERROR)
-                        Toast.makeText(this@WhisperDroidInputMethodService, "No speech detected", Toast.LENGTH_SHORT).show()
-                        viewModel.voiceState = VoiceState.IDLE
+                        showError("No speech detected")
                         return@withTimeout
                     }
 
@@ -286,15 +289,11 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     viewModel.voiceState = VoiceState.SUCCESS
                 }
             } catch (e: TimeoutCancellationException) {
-                performHapticFeedback(HapticType.ERROR)
                 Log.e(Constants.LOG_TAG, "Audio processing timed out", e)
-                Toast.makeText(this@WhisperDroidInputMethodService, "Processing timed out", Toast.LENGTH_SHORT).show()
-                viewModel.voiceState = VoiceState.IDLE
+                showError("Processing timed out")
             } catch (e: Exception) {
-                performHapticFeedback(HapticType.ERROR)
                 Log.e(Constants.LOG_TAG, "Error processing audio", e)
-                Toast.makeText(this@WhisperDroidInputMethodService, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                viewModel.voiceState = VoiceState.IDLE
+                showError("Transcription failed")
             } finally {
                 if (audioFile.exists()) {
                     audioFile.delete()

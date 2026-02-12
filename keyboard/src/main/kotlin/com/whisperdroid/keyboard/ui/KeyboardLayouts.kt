@@ -17,6 +17,7 @@ fun KeyboardLayout(
     shiftState: ShiftState,
     keyboardMode: KeyboardMode,
     voiceState: VoiceState,
+    errorMessage: String,
     onKeyClick: (String) -> Unit,
     onKeyLongClick: (String) -> Unit,
     onActionClick: (KeyboardAction) -> Unit,
@@ -43,15 +44,22 @@ fun KeyboardLayout(
                 VoiceState.TRANSCRIBING -> "Transcribing..."
                 VoiceState.CLEANING_UP -> "Cleaning up..."
                 VoiceState.SUCCESS -> "Done!"
-                VoiceState.OFFLINE -> "Offline"
+                VoiceState.OFFLINE -> if (errorMessage.isNotEmpty()) errorMessage else "Offline"
+                VoiceState.ERROR -> errorMessage
                 else -> ""
             }
 
             if (statusText.isNotEmpty()) {
+                val textColor = if (voiceState == VoiceState.ERROR || voiceState == VoiceState.OFFLINE) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = textColor,
                     modifier = Modifier.padding(end = 12.dp)
                 )
             }

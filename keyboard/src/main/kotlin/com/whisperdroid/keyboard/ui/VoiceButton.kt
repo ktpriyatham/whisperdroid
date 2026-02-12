@@ -94,10 +94,11 @@ fun VoiceButton(
                     tint = Color.Green
                 )
             }
-            VoiceState.OFFLINE -> {
+            VoiceState.OFFLINE,
+            VoiceState.ERROR -> {
                 Icon(
                     imageVector = Icons.Default.MicOff,
-                    contentDescription = "Offline",
+                    contentDescription = "Error",
                     tint = MaterialTheme.colorScheme.error
                 )
             }

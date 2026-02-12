@@ -8,6 +8,7 @@ class KeyboardViewModel {
     var shiftState by mutableStateOf(ShiftState.NONE)
     var keyboardMode by mutableStateOf(KeyboardMode.ALPHA)
     var voiceState by mutableStateOf(VoiceState.IDLE)
+    var errorMessage by mutableStateOf("")
 
     fun handleShift() {
         shiftState = when (shiftState) {

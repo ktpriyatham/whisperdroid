@@ -266,6 +266,8 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         }
                     }
 
+                    currentInputConnection?.commitText(resultText, 1)
+
                     val clipboardOutput = prefs.getBoolean(Constants.KEY_CLIPBOARD_OUTPUT, false)
                     if (clipboardOutput) {
                         val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -274,8 +276,6 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(this@WhisperDroidInputMethodService, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
-                    } else {
-                        currentInputConnection?.commitText(resultText, 1)
                     }
 
                     performHapticFeedback(HapticType.SUCCESS)

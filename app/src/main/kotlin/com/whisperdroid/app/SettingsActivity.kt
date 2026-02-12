@@ -159,7 +159,7 @@ fun SettingsScreen(prefs: EncryptedPreferencesManager) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Output to Clipboard")
                     Text(
-                        "Copy transcription to clipboard instead of direct input",
+                        "Copy transcription to clipboard in addition to direct input",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

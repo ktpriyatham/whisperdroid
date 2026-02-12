@@ -164,7 +164,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 }
 
                 val transcription = withContext(Dispatchers.IO) {
-                    WhisperApiClient(openAiKey).transcribe(audioFile)
+                    WhisperApiClient.transcribe(openAiKey, audioFile)
                 }
 
                 if (transcription.isBlank()) {
@@ -174,7 +174,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 }
 
                 val cleanedText = withContext(Dispatchers.IO) {
-                    ClaudeApiClient(claudeKey).cleanUp(transcription)
+                    ClaudeApiClient.cleanUp(claudeKey, transcription)
                 }
 
                 if (cleanedText.isNotBlank()) {

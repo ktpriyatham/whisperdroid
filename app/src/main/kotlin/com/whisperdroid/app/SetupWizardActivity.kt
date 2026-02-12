@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.whisperdroid.app.ui.theme.WhisperDroidTheme
+import com.whisperdroid.core.ui.theme.WhisperDroidTheme
 import com.whisperdroid.core.Constants
 import com.whisperdroid.security.EncryptedPreferencesManager
 

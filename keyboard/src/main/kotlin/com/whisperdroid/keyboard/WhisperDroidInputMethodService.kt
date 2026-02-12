@@ -13,7 +13,7 @@ import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.material3.MaterialTheme
+import com.whisperdroid.core.ui.theme.WhisperDroidTheme
 import kotlinx.coroutines.delay
 import androidx.compose.material3.Surface
 import com.whisperdroid.keyboard.ui.KeyboardAction
@@ -71,7 +71,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
         val frameLayout = FrameLayout(this)
         val composeView = ComposeView(this).apply {
             setContent {
-                WhisperDroidKeyboardTheme {
+                WhisperDroidTheme {
                     KeyboardScreen(viewModel)
                 }
             }
@@ -302,8 +302,4 @@ class WhisperDroidInputMethodService : InputMethodService() {
         }
     }
 
-    @Composable
-    fun WhisperDroidKeyboardTheme(content: @Composable () -> Unit) {
-        MaterialTheme(content = content)
-    }
 }

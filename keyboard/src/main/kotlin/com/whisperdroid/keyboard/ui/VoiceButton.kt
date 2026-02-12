@@ -17,9 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.whisperdroid.core.ui.theme.WhisperDroidTheme
 import com.whisperdroid.keyboard.VoiceState
 
 @Composable
@@ -60,7 +60,7 @@ fun VoiceButton(
                     .fillMaxSize()
                     .scale(pulseScale)
                     .clip(CircleShape)
-                    .background(Color.Red.copy(alpha = 0.3f))
+                    .background(WhisperDroidTheme.extraColors.recording.copy(alpha = 0.3f))
             )
         }
 
@@ -76,7 +76,7 @@ fun VoiceButton(
                 Icon(
                     imageVector = Icons.Default.Mic,
                     contentDescription = "Recording",
-                    tint = Color.Red
+                    tint = WhisperDroidTheme.extraColors.recording
                 )
             }
             VoiceState.TRANSCRIBING,
@@ -91,7 +91,7 @@ fun VoiceButton(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Success",
-                    tint = Color.Green
+                    tint = WhisperDroidTheme.extraColors.success
                 )
             }
             VoiceState.OFFLINE,

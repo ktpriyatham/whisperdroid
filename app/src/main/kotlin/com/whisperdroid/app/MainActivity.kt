@@ -10,7 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.whisperdroid.app.ui.theme.WhisperDroidTheme
+import com.whisperdroid.core.ui.theme.WhisperDroidTheme
 import com.whisperdroid.security.EncryptedPreferencesManager
 
 class MainActivity : ComponentActivity() {

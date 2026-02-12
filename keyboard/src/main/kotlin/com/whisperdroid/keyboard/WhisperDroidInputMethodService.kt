@@ -210,7 +210,8 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     if (refinementEnabled && !claudeKey.isNullOrBlank()) {
                         // Cleaning up step
                         viewModel.voiceState = VoiceState.CLEANING_UP
-                        val systemPrompt = prefs.getString(Constants.KEY_SYSTEM_PROMPT) ?: Constants.DEFAULT_SYSTEM_PROMPT
+                        val systemPrompt = prefs.getString(Constants.KEY_SYSTEM_PROMPT)
+                            .takeUnless { it.isNullOrBlank() } ?: Constants.DEFAULT_SYSTEM_PROMPT
                         val cleanedText = try {
                             withContext(Dispatchers.IO) {
                                 ClaudeApiClient.cleanUp(claudeKey, transcription, systemPrompt)

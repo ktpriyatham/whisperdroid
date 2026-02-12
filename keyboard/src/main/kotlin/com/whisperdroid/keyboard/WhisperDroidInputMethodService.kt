@@ -1,6 +1,7 @@
 package com.whisperdroid.keyboard
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
@@ -24,6 +25,10 @@ import com.whisperdroid.core.Constants
 import com.whisperdroid.core.NetworkUtils
 import com.whisperdroid.keyboard.audio.AudioHandler
 import com.whisperdroid.security.EncryptedPreferencesManager
+import android.provider.Settings
+import android.os.Vibrator
+import android.os.VibrationEffect
+import android.os.Build
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,15 +40,25 @@ import kotlinx.coroutines.withTimeout
 
 class WhisperDroidInputMethodService : InputMethodService() {
 
+    enum class HapticType {
+        KEY_PRESS,
+        VOICE_START,
+        VOICE_STOP,
+        SUCCESS,
+        ERROR
+    }
+
     private val viewModel = KeyboardViewModel()
     private lateinit var audioHandler: AudioHandler
     private lateinit var prefs: EncryptedPreferencesManager
+    private lateinit var vibrator: Vibrator
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
         audioHandler = AudioHandler(this)
         prefs = EncryptedPreferencesManager(this)
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
     }
 
     override fun onDestroy() {
@@ -65,15 +80,35 @@ class WhisperDroidInputMethodService : InputMethodService() {
         return frameLayout
     }
 
-    private fun performHapticFeedback() {
-        if (prefs.getBoolean(Constants.KEY_HAPTICS_ENABLED, true)) {
-            val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                vibrator.vibrate(android.os.VibrationEffect.createOneShot(30, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+    private fun performHapticFeedback(type: HapticType = HapticType.KEY_PRESS) {
+        if (prefs.getBoolean(Constants.KEY_HAPTICS_ENABLED, true) && isSystemHapticFeedbackEnabled()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = when (type) {
+                    HapticType.KEY_PRESS -> VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
+                    HapticType.VOICE_START -> VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
+                    HapticType.VOICE_STOP -> VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
+                    HapticType.SUCCESS -> VibrationEffect.createWaveform(longArrayOf(0, 50, 100, 50), -1)
+                    HapticType.ERROR -> VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+                }
+                vibrator.vibrate(effect)
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(30)
+                when (type) {
+                    HapticType.KEY_PRESS -> vibrator.vibrate(30)
+                    HapticType.VOICE_START -> vibrator.vibrate(50)
+                    HapticType.VOICE_STOP -> vibrator.vibrate(30)
+                    HapticType.SUCCESS -> vibrator.vibrate(longArrayOf(0, 50, 100, 50), -1)
+                    HapticType.ERROR -> vibrator.vibrate(100)
+                }
             }
+        }
+    }
+
+    private fun isSystemHapticFeedbackEnabled(): Boolean {
+        return try {
+            Settings.System.getInt(contentResolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, 1) != 0
+        } catch (e: Exception) {
+            true
         }
     }
 
@@ -102,16 +137,18 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     handleAction(action, kvm)
                 },
                 onVoiceStart = {
-                    performHapticFeedback()
+                    performHapticFeedback(HapticType.VOICE_START)
                     if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         kvm.voiceState = VoiceState.RECORDING
                         try {
                             audioHandler.startRecording()
                         } catch (e: Exception) {
+                            performHapticFeedback(HapticType.ERROR)
                             Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show()
                             kvm.voiceState = VoiceState.IDLE
                         }
                     } else {
+                        performHapticFeedback(HapticType.ERROR)
                         Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
                         val intent = Intent(this, PermissionActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -122,10 +159,11 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 },
                 onVoiceStop = {
                     if (kvm.voiceState == VoiceState.RECORDING) {
-                        performHapticFeedback()
+                        performHapticFeedback(HapticType.VOICE_STOP)
                         val audioFile = audioHandler.stopRecording()
                         
                         if (!NetworkUtils.isOnline(this)) {
+                            performHapticFeedback(HapticType.ERROR)
                             Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
                             kvm.voiceState = VoiceState.OFFLINE
                             if (audioFile?.exists() == true) {
@@ -139,6 +177,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                             Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
                             processAudio(audioFile)
                         } else {
+                            performHapticFeedback(HapticType.ERROR)
                             Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
                             kvm.voiceState = VoiceState.IDLE
                         }
@@ -187,6 +226,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
 
                     if (openAiKey.isNullOrBlank()) {
+                        performHapticFeedback(HapticType.ERROR)
                         Toast.makeText(this@WhisperDroidInputMethodService, "Please set OpenAI API key in settings", Toast.LENGTH_LONG).show()
                         viewModel.voiceState = VoiceState.IDLE
                         return@withTimeout
@@ -199,6 +239,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     }
 
                     if (transcription.isBlank()) {
+                        performHapticFeedback(HapticType.ERROR)
                         Toast.makeText(this@WhisperDroidInputMethodService, "No speech detected", Toast.LENGTH_SHORT).show()
                         viewModel.voiceState = VoiceState.IDLE
                         return@withTimeout
@@ -237,13 +278,16 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         currentInputConnection?.commitText(resultText, 1)
                     }
 
+                    performHapticFeedback(HapticType.SUCCESS)
                     viewModel.voiceState = VoiceState.SUCCESS
                 }
             } catch (e: TimeoutCancellationException) {
+                performHapticFeedback(HapticType.ERROR)
                 Log.e(Constants.LOG_TAG, "Audio processing timed out", e)
                 Toast.makeText(this@WhisperDroidInputMethodService, "Processing timed out", Toast.LENGTH_SHORT).show()
                 viewModel.voiceState = VoiceState.IDLE
             } catch (e: Exception) {
+                performHapticFeedback(HapticType.ERROR)
                 Log.e(Constants.LOG_TAG, "Error processing audio", e)
                 Toast.makeText(this@WhisperDroidInputMethodService, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 viewModel.voiceState = VoiceState.IDLE

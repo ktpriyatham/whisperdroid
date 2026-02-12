@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
+import com.whisperdroid.keyboard.BuildConfig
 import java.io.File
 import java.io.IOException
 
@@ -33,9 +34,11 @@ class AudioHandler(private val context: Context) {
                 prepare()
                 start()
             }
-            Log.d("AudioHandler", "Recording started: ${audioFile?.absolutePath}")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Recording started: ${audioFile?.absolutePath}")
+            }
         } catch (e: Exception) {
-            Log.e("AudioHandler", "Failed to start recording", e)
+            Log.e(TAG, "Failed to start recording", e)
             mediaRecorder?.release()
             mediaRecorder = null
             throw e
@@ -48,9 +51,11 @@ class AudioHandler(private val context: Context) {
                 stop()
                 release()
             }
-            Log.d("AudioHandler", "Recording stopped")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Recording stopped")
+            }
         } catch (e: Exception) {
-            Log.e("AudioHandler", "Failed to stop recording", e)
+            Log.e(TAG, "Failed to stop recording", e)
         } finally {
             mediaRecorder = null
         }
@@ -60,5 +65,9 @@ class AudioHandler(private val context: Context) {
     fun release() {
         mediaRecorder?.release()
         mediaRecorder = null
+    }
+
+    companion object {
+        private const val TAG = "WD_AudioHandler"
     }
 }

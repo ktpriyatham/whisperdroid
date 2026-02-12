@@ -180,7 +180,9 @@ class WhisperDroidInputMethodService : InputMethodService() {
 
                         kvm.voiceState = VoiceState.TRANSCRIBING
                         if (audioFile != null && audioFile.exists()) {
-                            Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
+                            if (BuildConfig.DEBUG) {
+                                Log.d(TAG, "Recording saved to: ${audioFile.absolutePath}")
+                            }
                             processAudio(audioFile)
                         } else {
                             showError("Recording failed")
@@ -265,7 +267,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                                 ClaudeApiClient.cleanUp(claudeKey, transcription, systemPrompt)
                             }
                         } catch (e: Exception) {
-                            Log.e(Constants.LOG_TAG, "Claude cleanup failed, using raw transcription", e)
+                            Log.e(TAG, "Claude cleanup failed, using raw transcription", e)
                             transcription
                         }
                         if (cleanedText.isNotBlank()) {
@@ -289,10 +291,10 @@ class WhisperDroidInputMethodService : InputMethodService() {
                     viewModel.voiceState = VoiceState.SUCCESS
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(Constants.LOG_TAG, "Audio processing timed out", e)
+                Log.e(TAG, "Audio processing timed out", e)
                 showError("Processing timed out")
             } catch (e: Exception) {
-                Log.e(Constants.LOG_TAG, "Error processing audio", e)
+                Log.e(TAG, "Error processing audio", e)
                 showError("Transcription failed")
             } finally {
                 if (audioFile.exists()) {
@@ -302,4 +304,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
         }
     }
 
+    companion object {
+        private const val TAG = "WD_WhisperDroidInputMethodService"
+    }
 }

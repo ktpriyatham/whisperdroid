@@ -18,6 +18,7 @@ fun KeyboardLayout(
     keyboardMode: KeyboardMode,
     voiceState: VoiceState,
     onKeyClick: (String) -> Unit,
+    onKeyLongClick: (String) -> Unit,
     onActionClick: (KeyboardAction) -> Unit,
     onVoiceStart: () -> Unit,
     onVoiceStop: () -> Unit,
@@ -63,7 +64,7 @@ fun KeyboardLayout(
         }
 
         when (keyboardMode) {
-            KeyboardMode.ALPHA -> AlphaLayout(shiftState, onKeyClick, onActionClick)
+            KeyboardMode.ALPHA -> AlphaLayout(shiftState, onKeyClick, onKeyLongClick, onActionClick)
             KeyboardMode.NUMERIC -> NumericLayout(onKeyClick, onActionClick)
             KeyboardMode.SYMBOLS -> SymbolsLayout(onKeyClick, onActionClick)
         }
@@ -74,6 +75,7 @@ fun KeyboardLayout(
 fun AlphaLayout(
     shiftState: ShiftState,
     onKeyClick: (String) -> Unit,
+    onKeyLongClick: (String) -> Unit,
     onActionClick: (KeyboardAction) -> Unit
 ) {
     val rows = listOf(
@@ -82,12 +84,14 @@ fun AlphaLayout(
         listOf("Shift", "z", "x", "c", "v", "b", "n", "m", "Backspace")
     )
 
-    rows.forEach { row ->
+    val topRowHints = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+
+    rows.forEachIndexed { rowIndex, row ->
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            row.forEach { key ->
+            row.forEachIndexed { colIndex, key ->
                 val weight = when (key) {
                     "Shift", "Backspace" -> 1.5f
                     else -> 1f
@@ -99,6 +103,8 @@ fun AlphaLayout(
                     else -> if (shiftState != ShiftState.NONE) key.uppercase() else key
                 }
 
+                val hint = if (rowIndex == 0) topRowHints.getOrNull(colIndex) else null
+
                 Key(
                     text = displayText,
                     onClick = {
@@ -108,6 +114,10 @@ fun AlphaLayout(
                             else -> onKeyClick(displayText)
                         }
                     },
+                    onLongClick = if (hint != null) {
+                        { onKeyLongClick(hint) }
+                    } else null,
+                    hint = hint,
                     modifier = Modifier.weight(weight),
                     isFunctional = key == "Shift" || key == "Backspace"
                 )

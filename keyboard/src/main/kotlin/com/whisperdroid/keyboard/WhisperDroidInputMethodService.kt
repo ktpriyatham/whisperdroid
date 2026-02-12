@@ -133,6 +133,10 @@ class WhisperDroidInputMethodService : InputMethodService() {
                         kvm.shiftState = ShiftState.NONE
                     }
                 },
+                onKeyLongClick = { text ->
+                    performHapticFeedback()
+                    currentInputConnection?.commitText(text, 1)
+                },
                 onActionClick = { action ->
                     handleAction(action, kvm)
                 },

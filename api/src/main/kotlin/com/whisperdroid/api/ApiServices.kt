@@ -4,6 +4,7 @@ import com.whisperdroid.api.models.ClaudeRequest
 import com.whisperdroid.api.models.ClaudeResponse
 import com.whisperdroid.api.models.Message
 import com.whisperdroid.api.models.WhisperResponse
+import com.whisperdroid.core.Constants
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -91,11 +92,11 @@ object ClaudeApiClient {
             .create(ClaudeService::class.java)
     }
 
-    suspend fun cleanUp(apiKey: String, text: String): String = safeApiCall {
+    suspend fun cleanUp(apiKey: String, text: String, systemPrompt: String = Constants.DEFAULT_SYSTEM_PROMPT): String = safeApiCall {
         val request = ClaudeRequest(
             model = "claude-3-haiku-20240307",
             max_tokens = 1024,
-            system = "You are a helpful keyboard assistant. Your task is to take raw voice-to-text transcriptions and clean them up. Add proper punctuation, correct obvious grammatical errors, and fix spelling. Do not add any conversational filler or meta-comments. Return ONLY the cleaned-up text.",
+            system = systemPrompt,
             messages = listOf(Message(role = "user", content = text))
         )
 

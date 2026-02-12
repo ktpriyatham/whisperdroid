@@ -26,6 +26,14 @@ class EncryptedPreferencesManager(context: Context) {
         return sharedPreferences.getString(key, null)
     }
 
+    fun saveBoolean(key: String, value: Boolean) {
+        sharedPreferences.edit().putBoolean(key, value).apply()
+    }
+
+    fun getBoolean(key: String, defaultValue: Boolean): Boolean {
+        return sharedPreferences.getBoolean(key, defaultValue)
+    }
+
     fun hasKeys(): Boolean {
         val openAIKey = getString(Constants.KEY_OPENAI_API_KEY)
         val claudeKey = getString(Constants.KEY_CLAUDE_API_KEY)

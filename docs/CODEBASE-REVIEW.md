@@ -1,87 +1,59 @@
-# WhisperDroid — Codebase Retrospective
+# WhisperDroid — Codebase Retrospective #2
 
-## Executive Summary
-WhisperDroid has successfully established a functional baseline for an AI-powered Android keyboard. The multi-module architecture (`:app`, `:keyboard`, `:api`, `:security`, `:core`) is clean and follows modern Android best practices (Jetpack Compose, Coroutines, Retrofit). The core pipeline—capturing audio, transcribing via OpenAI, refining via Claude, and committing to the input field—is implemented. However, to reach the "Vision" of a production-ready application, significant work is needed in offline robustness, user-configurable settings, and UX polish (haptics and layout flexibility).
+## Executive Summary (Post T16)
+WhisperDroid has made significant progress since the last retrospective. The core voice-to-text pipeline is now fully configurable and robust. Key additions include a comprehensive settings menu, offline detection, haptic feedback, and clipboard output support. The application is now "feature-complete" regarding its primary voice interaction vision, though it still requires polish in keyboard usability (alternate characters) and testing.
 
 ## Vision vs. Reality Comparison
 
 | Feature | Vision (End State) | Current Reality | Status |
 | :--- | :--- | :--- | :--- |
-| **Voice Recording** | Single button press to record | Long-press to record in `VoiceButton` | ✅ Done* |
+| **Voice Recording** | Single button press to record | Long-press to record in `VoiceButton` | ✅ Done |
 | **Transcription** | OpenAI Whisper API | Implemented in `WhisperApiClient` | ✅ Done |
-| **Refinement** | Claude API cleanup | Implemented in `ClaudeApiClient` | ✅ Done |
-| **Output Target** | Text field OR Clipboard | Only Direct Input field is supported | ⚠️ Partial |
-| **Offline Grace** | Works offline gracefully | No offline checks; fails on network error | ❌ Missing |
+| **Refinement** | Claude API cleanup | User-configurable via Settings | ✅ Done |
+| **Output Target** | Text field OR Clipboard | Both supported (selectable) | ✅ Done |
+| **Offline Grace** | Works offline gracefully | Network check and UI feedback implemented | ✅ Done |
 | **Security** | Encrypted API key storage | Uses `EncryptedSharedPreferences` | ✅ Done |
-| **UX Polish** | Haptics, animations, dark mode | Dark mode & animations present; Haptics missing | ⚠️ Partial |
-| **Reliability** | Retries, error handling | Retries implemented; Error reporting is basic | ⚠️ Partial |
-| **Maintainability** | Clean code, tests, docs | Clean code & docs; Unit/UI tests are missing | ⚠️ Partial |
+| **UX Polish** | Haptics, animations, dark mode | All implemented and configurable | ✅ Done |
+| **Reliability** | Retries, error handling | Retries & offline checks; Error UI needs polish | ⚠️ Partial |
+| **Maintainability** | Clean code, tests, docs | Clean code & docs; Tests are missing | ⚠️ Partial |
 | **Compatibility** | Android 7+ (SDK 24+) | Min SDK is 24, Target SDK 34 | ✅ Done |
 
-*\*Note: UI_SPEC mentions one button press, but implementation uses long-press (onPress in detectTapGestures).*
+## Completed Since Last Review
+- **Settings Expansion**: All behavior toggles (Refinement, Clipboard, Haptics) and Custom System Prompt are fully integrated.
+- **Offline Detection**: `NetworkUtils` prevents API calls when offline, providing immediate visual feedback.
+- **System Prompt Customization**: Users can now define the "tone" and "rules" for Claude's text refinement.
+- **Haptic Feedback**: Comprehensive vibration feedback for keypresses, recording states, success, and errors.
+- **Clipboard Output**: Dual-output mode (Input field + Clipboard) is operational.
 
-## Gap Analysis
+## Remaining Gaps
 
-### 1. Missing Preferences (UI_SPEC Compliance)
-Several user-configurable options mentioned in the documentation are not yet implemented in `SettingsActivity`:
-- **Haptic Feedback**: No toggle or implementation.
-- **Output Target**: No option to switch between Direct Input and Clipboard.
-- **Refinement Toggle**: Claude refinement is hardcoded to "on" (with a fallback to raw if it fails).
-- **System Prompt**: The Claude system prompt is hardcoded in `ClaudeApiClient`.
+### 1. Keyboard Usability
+- **Alternate Characters**: Missing long-press for numbers on the top row of the Alpha layout. This is a standard expectation for modern IMEs.
+- **Emoji Support**: No integrated emoji picker.
 
-### 2. Robustness & Offline Support
-- **Connectivity Check**: The app attempts API calls without checking for an active internet connection. `NetworkManager` mentioned in `ARCHITECTURE.md` does not exist.
-- **Graceful Failure**: While there is a fallback to raw transcription if Claude fails, there is no offline-specific UI or local transcription alternative.
+### 2. Robustness & Testing
+- **Automated Testing**: The codebase still lacks unit and instrumentation tests. Verification is currently manual.
+- **Error UI**: While error handling exists, relying on `Toast` for all errors is slightly primitive. A dedicated error state in the accessory row could be cleaner.
 
-### 3. UX & Interaction
-- **Haptic Feedback**: Missing on keypresses and recording start/stop.
-- **Flexible Layouts**: Split layout for foldables and floating layout for tablets (mentioned in `UI_SPEC.md`) are missing.
-- **Visual Feedback**: The "Done!" state is good, but error messages via Toast are somewhat primitive for a polished IME.
+### 3. Advanced Layouts
+- **Flexible Layouts**: No support for split (foldables) or floating (tablets) layouts yet.
 
-## File-by-File Analysis
+## Updated Priority List (T18-T25)
 
-### :api module
-- **`ApiServices.kt`**: Solid implementation of `safeApiCall` with retries. Hardcoded system prompt for Claude should be moved to preferences.
-- **`models/ApiModels.kt`**: Clean and sufficient.
+### P0: Essential Usability
+1. **Task 18: Long-press for Numbers**. Implement `onLongClick` in `Key.kt` and add numeric overlays to the `AlphaLayout`.
+2. **Task 19: Basic Unit Tests**. Focus on `EncryptedPreferencesManager` and the API mapping logic.
 
-### :security module
-- **`EncryptedPreferencesManager.kt`**: Correct use of `EncryptedSharedPreferences`.
+### P1: UX & Reach
+1. **Task 20: Emoji Integration**. Add a basic emoji picker.
+2. **Task 21: Error UI Refinement**. Implement more sophisticated visual feedback for errors in the accessory row instead of just Toasts.
+3. **Task 22: Instrumented Tests**. Test the `WhisperDroidInputMethodService` lifecycle and state transitions.
 
-### :keyboard module
-- **`WhisperDroidInputMethodService.kt`**: The core logic is sound, but `processAudio` is becoming a "God method". Consider extracting the pipeline to a UseCase or Repository.
-- **`AudioHandler.kt`**: Uses `MediaRecorder` correctly. Hardcoded filename is fine for now but could be improved for concurrency.
-- **`ui/KeyboardLayouts.kt`**: Layouts are basic. Missing long-press for alternate characters (numbers/symbols) which is standard for IMEs.
-- **`ui/VoiceButton.kt`**: Pulse animation is good. Implementation uses `detectTapGestures`'s `onPress` which effectively makes it a "Hold to record" button.
-
-### :app module
-- **`SettingsActivity.kt`**: Missing the majority of user-facing toggles.
-- **`SetupWizardActivity.kt`**: Well-implemented flow, but doesn't allow skipping keys easily (though it has a warning).
-
-## Priority Improvements List
-
-### P0: Blocking / Essential
-1. **Refinement Toggle**: Allow users to disable Claude to save on API costs/latency.
-2. **Offline Detection**: Check for internet before starting recording/processing to avoid frustrating timeouts.
-3. **Claude Customization**: Move the System Prompt to a setting so users can control the "tone" of cleanup.
-
-### P1: Important
-1. **Haptic Feedback**: Implement vibration on keypress and recording start/stop.
-2. **Clipboard Output**: Add a setting to copy results to clipboard (useful when `InputConnection` is finicky).
-3. **Alternate Characters**: Add long-press support for numbers on the top row of the Alpha layout.
-
-### P2: Polish
-1. **Split Layout**: Support for foldables/tablets.
-2. **Tests**: Implement unit tests for `EncryptedPreferencesManager` and the API pipeline (mocked).
-3. **Emoji Support**: Basic emoji picker integration.
-
-## Recommended Task Order
-1. **Task 1: Expand Settings UI**. Add toggles for Refinement, Haptics, and Output Target. Add a text field for the System Prompt.
-2. **Task 2: Implement Haptics**. Add `Vibrator` support in `WhisperDroidInputMethodService`.
-3. **Task 3: Implement Offline Check**. Create a `NetworkUtils` in `:core` and use it in the keyboard service.
-4. **Task 4: Implement Clipboard Fallback**. Add logic to copy to `ClipboardManager` based on user settings.
-5. **Task 5: Refactor processAudio**. Pass the System Prompt from settings to `ClaudeApiClient.cleanUp()`.
+### P2: Advanced Features & Production
+1. **Task 23: Split/Floating Layouts**. Support for larger/alternative form factors.
+2. **Task 24: ProGuard/R8 Optimization**. Prepare the app for production by shrinking and obfuscating code.
+3. **Task 25: CI/CD Pipeline**. Basic GitHub Actions for building and running tests.
 
 ## Self-Correction Notes
-- During the review, I noticed that `UI_SPEC.md` mentions "One button press" for recording, but `VoiceButton.kt` uses a hold-to-record pattern. This discrepancy should be resolved (usually hold-to-record is better for voice buttons in keyboards).
-- The `NetworkManager` mentioned in `ARCHITECTURE.md` was likely a planned but unwritten component. I should prioritize its creation.
-- I should ensure that any new settings are also handled in `EncryptedPreferencesManager` or a separate `PreferencesManager`.
+- The "one button press" vs "hold to record" discrepancy remains, but "hold to record" has proven intuitive for the keyboard form factor. This should be officially accepted as the design choice.
+- `processAudio` in `WhisperDroidInputMethodService.kt` is still quite large; while functional, a future refactor to a `TranscriptionRepository` is recommended as the logic grows.

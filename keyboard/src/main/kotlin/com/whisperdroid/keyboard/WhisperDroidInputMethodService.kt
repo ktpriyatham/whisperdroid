@@ -26,9 +26,11 @@ import com.whisperdroid.security.EncryptedPreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class WhisperDroidInputMethodService : InputMethodService() {
 
@@ -105,7 +107,7 @@ class WhisperDroidInputMethodService : InputMethodService() {
                 },
                 onVoiceStop = {
                     if (kvm.voiceState == VoiceState.RECORDING) {
-                        kvm.voiceState = VoiceState.PROCESSING
+                        kvm.voiceState = VoiceState.TRANSCRIBING
                         val audioFile = audioHandler.stopRecording()
                         if (audioFile != null && audioFile.exists()) {
                             Log.d("WhisperDroid", "Recording saved to: ${audioFile.absolutePath}")
@@ -151,40 +153,49 @@ class WhisperDroidInputMethodService : InputMethodService() {
     }
 
     private fun processAudio(audioFile: java.io.File) {
-        viewModel.voiceState = VoiceState.PROCESSING
         serviceScope.launch {
             try {
-                val openAiKey = prefs.getString(Constants.KEY_OPENAI_API_KEY)
-                val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
+                withTimeout(30000) {
+                    val openAiKey = prefs.getString(Constants.KEY_OPENAI_API_KEY)
+                    val claudeKey = prefs.getString(Constants.KEY_CLAUDE_API_KEY)
 
-                if (openAiKey.isNullOrBlank() || claudeKey.isNullOrBlank()) {
-                    Toast.makeText(this@WhisperDroidInputMethodService, "Please set API keys in settings", Toast.LENGTH_LONG).show()
-                    viewModel.voiceState = VoiceState.IDLE
-                    return@launch
-                }
+                    if (openAiKey.isNullOrBlank() || claudeKey.isNullOrBlank()) {
+                        Toast.makeText(this@WhisperDroidInputMethodService, "Please set API keys in settings", Toast.LENGTH_LONG).show()
+                        viewModel.voiceState = VoiceState.IDLE
+                        return@withTimeout
+                    }
 
-                val transcription = withContext(Dispatchers.IO) {
-                    WhisperApiClient.transcribe(openAiKey, audioFile)
-                }
+                    // Transcription step
+                    viewModel.voiceState = VoiceState.TRANSCRIBING
+                    val transcription = withContext(Dispatchers.IO) {
+                        WhisperApiClient.transcribe(openAiKey, audioFile)
+                    }
 
-                if (transcription.isBlank()) {
-                    Toast.makeText(this@WhisperDroidInputMethodService, "No speech detected", Toast.LENGTH_SHORT).show()
-                    viewModel.voiceState = VoiceState.IDLE
-                    return@launch
-                }
+                    if (transcription.isBlank()) {
+                        Toast.makeText(this@WhisperDroidInputMethodService, "No speech detected", Toast.LENGTH_SHORT).show()
+                        viewModel.voiceState = VoiceState.IDLE
+                        return@withTimeout
+                    }
 
-                val cleanedText = withContext(Dispatchers.IO) {
-                    ClaudeApiClient.cleanUp(claudeKey, transcription)
-                }
+                    // Cleaning up step
+                    viewModel.voiceState = VoiceState.CLEANING_UP
+                    val cleanedText = try {
+                        withContext(Dispatchers.IO) {
+                            ClaudeApiClient.cleanUp(claudeKey, transcription)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(Constants.LOG_TAG, "Claude cleanup failed, using raw transcription", e)
+                        transcription
+                    }
 
-                if (cleanedText.isNotBlank()) {
-                    currentInputConnection?.commitText(cleanedText, 1)
+                    val resultText = if (cleanedText.isNotBlank()) cleanedText else transcription
+                    currentInputConnection?.commitText(resultText, 1)
                     viewModel.voiceState = VoiceState.SUCCESS
-                } else {
-                    currentInputConnection?.commitText(transcription, 1)
-                    viewModel.voiceState = VoiceState.SUCCESS
                 }
-
+            } catch (e: TimeoutCancellationException) {
+                Log.e(Constants.LOG_TAG, "Audio processing timed out", e)
+                Toast.makeText(this@WhisperDroidInputMethodService, "Processing timed out", Toast.LENGTH_SHORT).show()
+                viewModel.voiceState = VoiceState.IDLE
             } catch (e: Exception) {
                 Log.e(Constants.LOG_TAG, "Error processing audio", e)
                 Toast.makeText(this@WhisperDroidInputMethodService, "Error: ${e.message}", Toast.LENGTH_SHORT).show()

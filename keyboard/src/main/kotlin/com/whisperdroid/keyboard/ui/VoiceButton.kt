@@ -78,7 +78,8 @@ fun VoiceButton(
                     tint = Color.Red
                 )
             }
-            VoiceState.PROCESSING -> {
+            VoiceState.TRANSCRIBING,
+            VoiceState.CLEANING_UP -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
                     strokeWidth = 2.dp,

@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speekez: Android Keyboard Research Dashboard</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --card-bg: #1f2937;
+                --text: #f9fafb;
+                --text-muted: #9ca3af;
+                --border: #374151;
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.125rem;
+            color: var(--text-muted);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+        }
+
+        /* Comparison Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            min-width: 1200px;
+        }
+
+        th {
+            background-color: var(--bg);
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            cursor: pointer;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th:hover {
+            background-color: var(--border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8125rem;
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background-color: rgba(99, 102, 241, 0.02);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-primary { background-color: #dbeafe; color: #1e40af; }
+        .badge-success { background-color: #d1fae5; color: #065f46; }
+        .badge-warning { background-color: #fef3c7; color: #92400e; }
+        .badge-danger { background-color: #fee2e2; color: #991b1b; }
+
+        /* Recommendations */
+        .recommendation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .rec-card {
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            transition: transform 0.2s, border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rec-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .rec-card.rank-1 { border-color: var(--primary); background-color: rgba(99, 102, 241, 0.05); }
+
+        .rank-badge {
+            font-size: 0.875rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .rec-card h3 { margin-top: 0; }
+        .rec-card ul { padding-left: 1.25rem; flex-grow: 1; }
+        .rec-card li { margin-bottom: 0.5rem; }
+
+        /* Strategy Section */
+        .strategy-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            background-color: var(--primary);
+            color: white;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        code {
+            background-color: var(--bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        /* Search input */
+        #tableFilter {
+            padding: 0.625rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--card-bg);
+            color: var(--text);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Mobile Friendly */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.75rem; }
+            .card-header h2 { font-size: 1.25rem; }
+        }
+
+        /* Print Styles */
+        @media print {
+            body { background-color: white; color: black; }
+            .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+            .no-print { display: none; }
+            .container { max-width: 100%; }
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+        }
+
+        .collapsible-content.open {
+            max-height: 5000px;
+        }
+
+        .chevron {
+            transition: transform 0.3s;
+        }
+
+        .chevron.open {
+            transform: rotate(180deg);
+        }
+
+        .feature-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            font-size: 0.75rem;
+        }
+        .feature-list li {
+            display: inline-block;
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Speekez Research</h1>
+            <p class="subtitle">Open-Source Android Keyboard Comparison & Integration Strategy</p>
+        </header>
+
+        <!-- Comparison Table -->
+        <section class="card">
+            <div class="card-header" onclick="toggleSection('comparison-table')">
+                <h2>Keyboard Comparison Table</h2>
+                <div class="chevron open" id="chevron-comparison-table">▼</div>
+            </div>
+            <div class="card-content collapsible-content open" id="comparison-table">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+                    <input type="text" id="tableFilter" oninput="filterTable()" placeholder="Search by name, language, feature...">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">* Click headers to sort. Table scrolls horizontally.</p>
+                </div>
+                <div class="table-container">
+                    <table id="keyboardTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">Name</th>
+                                <th onclick="sortTable(1)">License</th>
+                                <th onclick="sortTable(2)">Language</th>
+                                <th onclick="sortTable(3)">Stars/Activity</th>
+                                <th onclick="sortTable(4)">Architecture</th>
+                                <th onclick="sortTable(5)">Voice Difficulty</th>
+                                <th onclick="sortTable(6)">Extensibility</th>
+                                <th onclick="sortTable(7)">UI Mod</th>
+                                <th onclick="sortTable(8)">A11y</th>
+                                <th onclick="sortTable(9)">Performance</th>
+                                <th>Key Features</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><a href="https://github.com/florisboard/florisboard" target="_blank">FlorisBoard</a></td>
+                                <td><span class="badge badge-success">Apache-2.0</span></td>
+                                <td>Kotlin (Modern)</td>
+                                <td>8.0k / High</td>
+                                <td>Clean, Modular</td>
+                                <td><span class="badge badge-success">Moderate (2/5)</span></td>
+                                <td>High (Extension API)</td>
+                                <td>High (Theming)</td>
+                                <td>Good</td>
+                                <td>Fast / Medium APK</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Clipboard Manager</li>
+                                        <li>Advanced Theming</li>
+                                        <li>Emoji Search</li>
+                                        <li>Multi-Language</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><a href="https://github.com/Helium314/HeliBoard" target="_blank">HeliBoard</a></td>
+                                <td><span class="badge badge-danger">GPL-3.0</span></td>
+                                <td>Java/Kotlin/C++</td>
+                                <td>4.6k / High</td>
+                                <td>AOSP Based</td>
+                                <td><span class="badge badge-warning">High (4/5)</span></td>
+                                <td>Moderate</td>
+                                <td>Moderate</td>
+                                <td>Excellent</td>
+                                <td>Ultra Fast</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Glide (Offline)</li>
+                                        <li>Custom Layouts</li>
+                                        <li>100% Offline</li>
+                                        <li>Stability</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><a href="https://github.com/AnySoftKeyboard/AnySoftKeyboard" target="_blank">AnySoftKeyboard</a></td>
+                                <td><span class="badge badge-success">Apache-2.0</span></td>
+                                <td>Java</td>
+                                <td>3.2k / High</td>
+                                <td>Addon-Centric</td>
+                                <td><span class="badge badge-warning">Moderate (3/5)</span></td>
+                                <td>Very High</td>
+                                <td>Moderate</td>
+                                <td>Good</td>
+                                <td>Medium</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Vast Addon Library</li>
+                                        <li>Gesture Typing</li>
+                                        <li>Per-App Tints</li>
+                                        <li>Incognito Mode</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><a href="https://github.com/dessalines/thumb-key" target="_blank">Thumb-Key</a></td>
+                                <td><span class="badge badge-danger">AGPL-3.0</span></td>
+                                <td>Kotlin (Compose)</td>
+                                <td>1.4k / V. High</td>
+                                <td>Modern Compose</td>
+                                <td><span class="badge badge-success">Easy (1/5)</span></td>
+                                <td>High (YAML)</td>
+                                <td>Very High</td>
+                                <td>Good</td>
+                                <td>Fast / Large APK</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>3x3 Grid Layout</li>
+                                        <li>Compose UI</li>
+                                        <li>YAML Modding</li>
+                                        <li>Power-User Focus</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><a href="https://github.com/T-Rex777/Unexpected-Keyboard" target="_blank">Unexpected Keyboard</a></td>
+                                <td><span class="badge badge-success">Apache-2.0</span></td>
+                                <td>Java</td>
+                                <td>1.5k / Moderate</td>
+                                <td>View-based</td>
+                                <td><span class="badge badge-warning">Moderate (3/5)</span></td>
+                                <td>Low</td>
+                                <td>Moderate</td>
+                                <td>Basic</td>
+                                <td>Lightweight</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Swipe for Symbols</li>
+                                        <li>Radial UI</li>
+                                        <li>Privacy Focused</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><a href="https://github.com/SimpleMobileTools/Simple-Keyboard" target="_blank">Simple Keyboard</a></td>
+                                <td><span class="badge badge-danger">GPL-3.0</span></td>
+                                <td>Kotlin</td>
+                                <td>0.3k / Low</td>
+                                <td>Flat / Minimal</td>
+                                <td><span class="badge badge-success">Easy (1/5)</span></td>
+                                <td>Low</td>
+                                <td>Moderate</td>
+                                <td>Basic</td>
+                                <td>Smallest APK</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Minimalist</li>
+                                        <li>Tiny Footprint</li>
+                                        <li>Material Design</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>AOSP Keyboard (LatinIME)</td>
+                                <td><span class="badge badge-success">Apache-2.0</span></td>
+                                <td>Java/C++</td>
+                                <td>N/A / Low</td>
+                                <td>Legacy Monolith</td>
+                                <td><span class="badge badge-danger">V. High (5/5)</span></td>
+                                <td>Low</td>
+                                <td>Low</td>
+                                <td>Full Support</td>
+                                <td>Stable</td>
+                                <td>
+                                    <ul class="feature-list">
+                                        <li>Reference Impl</li>
+                                        <li>Standard UI</li>
+                                        <li>Complex Core</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Top 3 Recommendations -->
+        <section class="card">
+            <div class="card-header" onclick="toggleSection('recommendations')">
+                <h2>Top 3 Recommendations</h2>
+                <div class="chevron open" id="chevron-recommendations">▼</div>
+            </div>
+            <div class="card-content collapsible-content open" id="recommendations">
+                <div class="recommendation-grid">
+                    <div class="rec-card rank-1">
+                        <span class="rank-badge">#1 Best Overall</span>
+                        <h3>FlorisBoard</h3>
+                        <p>The perfect balance of modern tech and permissive licensing.</p>
+                        <ul>
+                            <li><strong>Why Speekez:</strong> Written in Kotlin, Apache-2.0 license, and extremely active. Its modular architecture makes adding a "Speekez Module" straightforward.</li>
+                            <li><strong>Specific Modules:</strong> <code>app</code> for UI, <code>lib</code> for IME logic.</li>
+                            <li><strong>Integration Effort:</strong> ~5-7 Days.</li>
+                            <li><strong>Risks:</strong> Currently in beta; some core features like word prediction are in flux.</li>
+                        </ul>
+                    </div>
+                    <div class="rec-card">
+                        <span class="rank-badge">#2 Best for Development</span>
+                        <h3>Thumb-Key</h3>
+                        <p>Modern Jetpack Compose architecture matches our current WhisperDroid stack.</p>
+                        <ul>
+                            <li><strong>Why Speekez:</strong> Uses Compose for everything. Very easy to build custom UI overlays for voice recording and transcription progress.</li>
+                            <li><strong>Specific Files:</strong> <code>ThumbKeyIme.kt</code>, <code>KeyboardLayout.kt</code>.</li>
+                            <li><strong>Integration Effort:</strong> ~3-5 Days.</li>
+                            <li><strong>Risks:</strong> AGPL-3.0 license is restrictive; unique grid layout might alienate "standard" users.</li>
+                        </ul>
+                    </div>
+                    <div class="rec-card">
+                        <span class="rank-badge">#3 Most Stable Base</span>
+                        <h3>HeliBoard</h3>
+                        <p>Best for users wanting a traditional Gboard-like experience.</p>
+                        <ul>
+                            <li><strong>Why Speekez:</strong> Solid AOSP base with modern features. Most feature-complete open-source keyboard today.</li>
+                            <li><strong>Specific Files:</strong> <code>LatinIME.java</code>, <code>AudioManager.java</code>.</li>
+                            <li><strong>Integration Effort:</strong> ~10-14 Days.</li>
+                            <li><strong>Risks:</strong> Heavy Java/C++ legacy; difficult to customize UI compared to Floris/Thumb. GPL-3.0 license.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Integration Strategy -->
+        <section class="card">
+            <div class="card-header" onclick="toggleSection('strategy')">
+                <h2>Integration Strategy (#1 FlorisBoard)</h2>
+                <div class="chevron open" id="chevron-strategy">▼</div>
+            </div>
+            <div class="card-content collapsible-content open" id="strategy">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h3>Action Plan</h3>
+                        <div class="strategy-step">
+                            <div class="step-number">1</div>
+                            <div>
+                                <strong>Fork & Modularize:</strong> Fork FlorisBoard. Create a <code>:speekez-api</code> module. Port our existing <code>WhisperApiClient</code> and <code>ClaudeApiClient</code> logic.
+                            </div>
+                        </div>
+                        <div class="strategy-step">
+                            <div class="step-number">2</div>
+                            <div>
+                                <strong>Smartbar UI:</strong> Locate <code>SmartbarView.kt</code>. Inject a microphone icon next to the clipboard icon. Add a <code>longClick</code> listener to trigger recording.
+                            </div>
+                        </div>
+                        <div class="strategy-step">
+                            <div class="step-number">3</div>
+                            <div>
+                                <strong>Transcription Hook:</strong> On audio release, send to Whisper. Use the <code>EditorInstance</code> to commit the returned text directly into the current field.
+                            </div>
+                        </div>
+                        <div class="strategy-step">
+                            <div class="step-number">4</div>
+                            <div>
+                                <strong>AI Refinement:</strong> If enabled, pass the text to Claude before committing. Show a "Refining..." status in the Smartbar.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg); padding: 1.5rem; border-radius: 0.5rem; border: 1px dashed var(--border);">
+                        <h3>Architecture Diagram</h3>
+                        <pre style="font-size: 0.75rem; overflow-x: auto;">
+[ FlorisBoard IME ] <---> [ Smartbar UI ]
+      |                        |
+      | (Commits Text)         | (Triggers Record)
+      v                        v
+[ EditorInstance ]      [ AudioHandler ]
+                               |
+                               | (m4a file)
+                               v
+                        [ Speekez Module ]
+                         /            \
+                [ Whisper API ]  [ Claude API ]
+                        \            /
+                         v          v
+                      [ Final String ]
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        function toggleSection(id) {
+            const content = document.getElementById(id);
+            const chevron = document.getElementById('chevron-' + id);
+            content.classList.toggle('open');
+            chevron.classList.toggle('open');
+        }
+
+        function filterTable() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("tableFilter");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("keyboardTable");
+            tr = table.getElementsByTagName("tr");
+            for (i = 1; i < tr.length; i++) {
+                var match = false;
+                td = tr[i].getElementsByTagName("td");
+                for (var j = 0; j < td.length; j++) {
+                    if (td[j]) {
+                        txtValue = td[j].textContent || td[j].innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            match = true;
+                            break;
+                        }
+                    }
+                }
+                tr[i].style.display = match ? "" : "none";
+            }
+        }
+
+        function sortTable(n) {
+            var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+            table = document.getElementById("keyboardTable");
+            switching = true;
+            dir = "asc";
+            while (switching) {
+                switching = false;
+                rows = table.rows;
+                for (i = 1; i < (rows.length - 1); i++) {
+                    shouldSwitch = false;
+                    x = rows[i].getElementsByTagName("TD")[n];
+                    y = rows[i + 1].getElementsByTagName("TD")[n];
+                    if (dir == "asc") {
+                        if (x.innerText.toLowerCase() > y.innerText.toLowerCase()) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else if (dir == "desc") {
+                        if (x.innerText.toLowerCase() < y.innerText.toLowerCase()) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount ++;
+                } else {
+                    if (switchcount == 0 && dir == "asc") {
+                        dir = "desc";
+                        switching = true;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
